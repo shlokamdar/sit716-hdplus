@@ -1,0 +1,5 @@
+my_public_ip     = "49.249.138.30"
+target_sg_cidr   = "49.249.138.30/32"
+attacker_sg_cidr = "49.249.138.30/32"
+key_name         = "sit716-ids-key"
+aws_region       = "ap-south-1"

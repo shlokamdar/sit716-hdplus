@@ -1,0 +1,20 @@
+{
+  "test_start": "2026-09-18T07:10:09+00:00",
+  "test_end": "2026-09-18T07:19:09+00:00",
+  "attackers": [
+    {
+      "attacker_ip": "10.0.1.194",
+      "attack_type": "PORT_SCAN",
+      "target_ip": "10.0.1.65",
+      "attack_start": "2026-09-18T07:10:10+00:00",
+      "attack_end": "2026-09-18T07:12:14+00:00"
+    },
+    {
+      "attacker_ip": "10.0.1.70",
+      "attack_type": "SSH_BRUTE_FORCE",
+      "target_ip": "10.0.1.65",
+      "attack_start": "2026-09-18T07:10:09+00:00",
+      "attack_end": "2026-09-18T07:19:09+00:00"
+    }
+  ]
+}
