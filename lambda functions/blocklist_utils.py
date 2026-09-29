@@ -1,21 +1,35 @@
+
 import ipaddress
 import re
 from datetime import datetime, timedelta, timezone
+
 METADATA_SERVICE_CIDR = "169.254.169.254/32"
 
 DESCRIPTION_PREFIX = "auto-blocked"
+
 DESCRIPTION_RE = re.compile(
-    r"^auto-blocked;blocked_at=(?P<blocked_at>[^;]+);expiry=(?P<expiry>[^;]+);reason=(?P<reason>.+)$"
+    r"^auto-blocked;"
+    r"(?:nacl_rule=(?P<nacl_rule>\d+);)?"
+    r"blocked_at=(?P<blocked_at>[^;]+);"
+    r"expiry=(?P<expiry>[^;]+);"
+    r"reason=(?P<reason>.+)$"
 )
 
+NACL_RULE_BASE = 100
+NACL_RULE_MAX = 499
 
-def build_description(blocked_at, expiry, reason):
+
+def build_description(blocked_at, expiry, reason, nacl_rule=None):
     """
     blocked_at / expiry: timezone-aware datetime objects (UTC).
-    Returns the tag string stored in the SG rule's Description field.
+    nacl_rule: NACL deny-entry rule number enforcing this block, or None.
+    Returns the tag string stored in the SG rule's Description field
+    (the SG remains the state store; the NACL is the enforcement layer).
     """
+    rule_part = f"nacl_rule={nacl_rule};" if nacl_rule is not None else ""
     return (
-        f"{DESCRIPTION_PREFIX};blocked_at={blocked_at.isoformat()};"
+        f"{DESCRIPTION_PREFIX};{rule_part}"
+        f"blocked_at={blocked_at.isoformat()};"
         f"expiry={expiry.isoformat()};reason={reason}"
     )
 
@@ -31,10 +45,12 @@ def parse_description(description):
         expiry = datetime.fromisoformat(match.group("expiry"))
     except ValueError:
         return None
+    nacl_rule = match.group("nacl_rule")
     return {
         "blocked_at": blocked_at,
         "expiry": expiry,
         "reason": match.group("reason"),
+        "nacl_rule": int(nacl_rule) if nacl_rule is not None else None,
     }
 
 
