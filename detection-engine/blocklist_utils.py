@@ -1,56 +1,102 @@
 import ipaddress
 import re
 from datetime import datetime, timedelta, timezone
+
 METADATA_SERVICE_CIDR = "169.254.169.254/32"
 
+
 DESCRIPTION_PREFIX = "auto-blocked"
+
 DESCRIPTION_RE = re.compile(
-    r"^auto-blocked;blocked_at=(?P<blocked_at>[^;]+);expiry=(?P<expiry>[^;]+);reason=(?P<reason>.+)$"
+    r"^auto-blocked;"
+    r"(?:nacl_rule=(?P<nacl_rule>\d+);)?"
+    r"blocked_at=(?P<blocked_at>[^;]+);"
+    r"expiry=(?P<expiry>[^;]+);"
+    r"reason=(?P<reason>.+)$"
 )
 
 
-def build_description(blocked_at, expiry, reason):
+# Managed NACL rule-number range.
+NACL_RULE_BASE = 100
+NACL_RULE_MAX = 499
+
+
+def build_description(blocked_at, expiry, reason, nacl_rule=None):
+
+    rule_part = ""
+
+    if nacl_rule is not None:
+        rule_part = f"nacl_rule={nacl_rule};"
+
     return (
-        f"{DESCRIPTION_PREFIX};blocked_at={blocked_at.isoformat()};"
-        f"expiry={expiry.isoformat()};reason={reason}"
+        f"{DESCRIPTION_PREFIX};"
+        f"{rule_part}"
+        f"blocked_at={blocked_at.isoformat()};"
+        f"expiry={expiry.isoformat()};"
+        f"reason={reason}"
     )
 
 
 def parse_description(description):
     if not description:
         return None
+
     match = DESCRIPTION_RE.match(description)
+
     if not match:
         return None
+
     try:
-        blocked_at = datetime.fromisoformat(match.group("blocked_at"))
-        expiry = datetime.fromisoformat(match.group("expiry"))
+        blocked_at = datetime.fromisoformat(
+            match.group("blocked_at")
+        )
+
+        expiry = datetime.fromisoformat(
+            match.group("expiry")
+        )
+
     except ValueError:
         return None
+
+    nacl_rule = match.group("nacl_rule")
+
     return {
         "blocked_at": blocked_at,
         "expiry": expiry,
         "reason": match.group("reason"),
+        "nacl_rule": int(nacl_rule) if nacl_rule is not None else None,
     }
 
 
 def compute_expiry(duration_minutes, now=None):
     now = now or datetime.now(timezone.utc)
+
     return now, now + timedelta(minutes=duration_minutes)
 
 
 def is_whitelisted(ip, whitelist_cidrs):
     try:
         candidate = ipaddress.ip_address(ip)
+
     except ValueError:
         return True
 
-    all_cidrs = list(whitelist_cidrs) + [METADATA_SERVICE_CIDR]
+    all_cidrs = list(whitelist_cidrs) + [
+        METADATA_SERVICE_CIDR
+    ]
+
     for cidr in all_cidrs:
+
         try:
-            network = ipaddress.ip_network(cidr, strict=False)
+            network = ipaddress.ip_network(
+                cidr,
+                strict=False
+            )
+
         except ValueError:
             continue
+
         if candidate in network:
             return True
+
     return False
